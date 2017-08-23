@@ -63,6 +63,7 @@ def main_menu(
             current_site=site,
             current_page=current_page,
             current_page_ancestor_ids=ancestor_ids,
+            current_level=1,
             use_specific=menu.use_specific,
             original_menu_tag='main_menu',
             menu_instance=menu,
@@ -138,6 +139,7 @@ def flat_menu(
             current_site=site,
             current_page=current_page,
             current_page_ancestor_ids=ancestor_ids,
+            current_level=1,
             use_specific=menu.use_specific,
             original_menu_tag='flat_menu',
             menu_instance=menu,
@@ -176,10 +178,10 @@ def get_sub_menu_items_for_page(
     # Build a common dict of kwargs that can be passed to `prime_menu_items()`
     # and any hook methods
     common_kwargs = {
-        'request': request,
         'current_site': current_site,
         'current_page': current_page,
         'current_page_ancestor_ids': ancestor_ids,
+        'current_level': current_level,
         'use_specific': use_specific,
         'original_menu_tag': original_menu_tag,
         'menu_instance': menu_instance,
@@ -192,7 +194,7 @@ def get_sub_menu_items_for_page(
     # Call `prime_menu_items` to prepare the children pages for output. This
     # will add `href`, `text`, `active_class` and `has_children_in_menu`
     # attributes to each item, to use in menu templates.
-    menu_items = prime_menu_items(menu_items=children_pages, **common_kwargs)
+    menu_items = prime_menu_items(request, children_pages, **common_kwargs)
 
     """
     If `page` has a `modify_submenu_items` method, send the primed
@@ -237,7 +239,7 @@ def get_sub_menu_items_for_page(
 
     # allow hooks to modify the menu_items list further
     for hook in hooks.get_hooks('menus_modify_sub_menu_items'):
-        menu_items = hook(menu_items, page=page, **common_kwargs)
+        menu_items = hook(menu_items, page, request, **common_kwargs)
 
     return page, menu_items
 
@@ -503,9 +505,9 @@ def children_menu(
 
 def prime_menu_items(
     request, menu_items, current_site, current_page, current_page_ancestor_ids,
-    use_specific, original_menu_tag, menu_instance, check_for_children=False,
-    allow_repeating_parents=True, apply_active_classes=True,
-    use_absolute_page_urls=False,
+    current_level, use_specific, original_menu_tag, menu_instance,
+    check_for_children=False, allow_repeating_parents=True,
+    apply_active_classes=True, use_absolute_page_urls=False,
 ):
     """
     Prepare a list of `MenuItem` or `Page` objects for rendering to a menu
