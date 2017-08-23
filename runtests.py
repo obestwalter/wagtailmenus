@@ -16,6 +16,7 @@ def make_parser():
         choices=['all', 'pending', 'imminent', 'none'],
         default='imminent'
     )
+    parser.add_argument('rest', nargs='*')
     return parser
 
 
@@ -41,7 +42,7 @@ def runtests():
         # Deprecation warnings are ignored by default
         pass
 
-    argv = [sys.argv[0], 'test']
+    argv = [sys.argv[0], 'test'] + args.rest
     try:
         execute_from_command_line(argv)
     except:
