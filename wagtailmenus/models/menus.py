@@ -8,11 +8,10 @@ from django.utils.encoding import python_2_unicode_compatible
 from django.utils.functional import cached_property
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
-
 from modelcluster.models import ClusterableModel
-
 from wagtail.wagtailadmin.edit_handlers import (
     FieldPanel, MultiFieldPanel, InlinePanel)
+from wagtail.wagtailcore import hooks
 from wagtail.wagtailcore.models import Page
 
 from .. import app_settings
@@ -29,7 +28,9 @@ class Menu(object):
     max_levels = 1
     use_specific = app_settings.USE_SPECIFIC_AUTO
     pages_for_display = None
+    root_page = None  # Not relevant for all menu classes
     request = None
+    menu_type = ''  # provided to hook methods
 
     def clear_page_cache(self):
         try:
@@ -41,9 +42,24 @@ class Menu(object):
         except AttributeError:
             pass
 
+    def get_default_hook_kwargs(self):
+        return {
+            'request': self.request,
+            'root_page': self.root_page,
+            'max_levels': self.max_levels,
+            'use_specific': self.use_specific,
+            'menu_type': self.menu_type,
+            'menu_instance': self,
+        }
+
     def get_base_page_queryset(self):
-        return Page.objects.filter(live=True, expired=False,
-                                   show_in_menus=True)
+        pages = Page.objects.filter(
+            live=True, expired=False, show_in_menus=True)
+        # allow hooks to modify the queryset
+        hook_kwargs = self.get_default_hook_kwargs()
+        for hook in hooks.get_hooks('menus_modify_base_page_queryset'):
+            pages = hook(pages, **hook_kwargs)
+        return pages
 
     def set_max_levels(self, max_levels):
         if self.max_levels != max_levels:
@@ -95,7 +111,12 @@ class Menu(object):
 
     def get_children_for_page(self, page):
         """Return a list of relevant child pages for a given page."""
-        return self.page_children_dict.get(page.path, [])
+        children = self.page_children_dict.get(page.path, [])
+        # allow hooks to modify the list of children
+        hook_kwargs = self.get_default_hook_kwargs()
+        for hook in hooks.get_hooks('menus_modify_children_for_page'):
+            children = hook(children, page=page, **hook_kwargs)
+        return children
 
     def page_has_children(self, page):
         """Return a boolean indicating whether a given page has any relevant
@@ -141,11 +162,11 @@ class MenuFromRootPage(Menu):
 
 
 class SectionMenu(MenuFromRootPage):
-    pass
+    menu_type = 'section'  # provided to hook methods
 
 
 class ChildrenMenu(MenuFromRootPage):
-    pass
+    menu_type = 'children'  # provided to hook methods
 
 
 class MenuWithMenuItems(ClusterableModel, Menu):
@@ -156,7 +177,12 @@ class MenuWithMenuItems(ClusterableModel, Menu):
         abstract = True
 
     def get_base_menuitem_queryset(self):
-        return self.get_menu_items_manager().for_display()
+        menu_items = self.get_menu_items_manager().for_display()
+        # allow hooks to modify the queryset
+        hook_kwargs = self.get_default_hook_kwargs()
+        for hook in hooks.get_hooks('menus_modify_base_menuitem_queryset'):
+            menu_items = hook(menu_items, **hook_kwargs)
+        return menu_items
 
     @cached_property
     def top_level_items(self):
@@ -239,6 +265,8 @@ class MenuWithMenuItems(ClusterableModel, Menu):
 
 @python_2_unicode_compatible
 class AbstractMainMenu(MenuWithMenuItems):
+    menu_type = 'main'  # provided to hook methods
+
     site = models.OneToOneField(
         'wagtailcore.Site',
         verbose_name=_('site'),
@@ -315,6 +343,8 @@ class AbstractMainMenu(MenuWithMenuItems):
 
 @python_2_unicode_compatible
 class AbstractFlatMenu(MenuWithMenuItems):
+    menu_type = 'flat'  # provided to hook methods
+
     site = models.ForeignKey(
         'wagtailcore.Site',
         verbose_name=_('site'),
