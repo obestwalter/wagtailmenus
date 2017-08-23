@@ -56,9 +56,8 @@ class Menu(object):
         pages = Page.objects.filter(
             live=True, expired=False, show_in_menus=True)
         # allow hooks to modify the queryset
-        hook_kwargs = self.get_default_hook_kwargs()
         for hook in hooks.get_hooks('menus_modify_base_page_queryset'):
-            pages = hook(pages, **hook_kwargs)
+            pages = hook(pages, **self.get_default_hook_kwargs())
         return pages
 
     def set_max_levels(self, max_levels):
@@ -113,9 +112,8 @@ class Menu(object):
         """Return a list of relevant child pages for a given page."""
         children = self.page_children_dict.get(page.path, [])
         # allow hooks to modify the list of children
-        hook_kwargs = self.get_default_hook_kwargs()
         for hook in hooks.get_hooks('menus_modify_children_for_page'):
-            children = hook(children, page=page, **hook_kwargs)
+            children = hook(children, page, **self.get_default_hook_kwargs())
         return children
 
     def page_has_children(self, page):
@@ -179,9 +177,8 @@ class MenuWithMenuItems(ClusterableModel, Menu):
     def get_base_menuitem_queryset(self):
         menu_items = self.get_menu_items_manager().for_display()
         # allow hooks to modify the queryset
-        hook_kwargs = self.get_default_hook_kwargs()
         for hook in hooks.get_hooks('menus_modify_base_menuitem_queryset'):
-            menu_items = hook(menu_items, **hook_kwargs)
+            menu_items = hook(menu_items, **self.get_default_hook_kwargs())
         return menu_items
 
     @cached_property
