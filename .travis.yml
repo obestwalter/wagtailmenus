@@ -28,7 +28,7 @@ install:
 - pip install tox codecov
 
 script:
-- tox
+- tox -e
 
 after_success: 
 - codecov
