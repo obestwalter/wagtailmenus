@@ -1,8 +1,9 @@
 from __future__ import unicode_literals
 import warnings
-
 from copy import copy
+
 from django.template import Library
+from wagtail.wagtailcore import hooks
 from wagtail.wagtailcore.models import Page
 
 from wagtailmenus import app_settings
@@ -172,23 +173,26 @@ def get_sub_menu_items_for_page(
     # The menu items will be the children of the provided `page`
     children_pages = menu_instance.get_children_for_page(page)
 
+    # Build a common dict of kwargs that can be passed to `prime_menu_items()`
+    # and any hook methods
+    common_kwargs = {
+        'request': request,
+        'current_site': current_site,
+        'current_page': current_page,
+        'current_page_ancestor_ids': ancestor_ids,
+        'use_specific': use_specific,
+        'original_menu_tag': original_menu_tag,
+        'menu_instance': menu_instance,
+        'check_for_children': current_level < max_levels,
+        'allow_repeating_parents': allow_repeating_parents,
+        'apply_active_classes': apply_active_classes,
+        'use_absolute_page_urls': use_absolute_page_urls,
+    }
+
     # Call `prime_menu_items` to prepare the children pages for output. This
     # will add `href`, `text`, `active_class` and `has_children_in_menu`
     # attributes to each item, to use in menu templates.
-    menu_items = prime_menu_items(
-        request=request,
-        menu_items=children_pages,
-        current_site=current_site,
-        current_page=current_page,
-        current_page_ancestor_ids=ancestor_ids,
-        use_specific=use_specific,
-        original_menu_tag=original_menu_tag,
-        menu_instance=menu_instance,
-        check_for_children=current_level < max_levels,
-        allow_repeating_parents=allow_repeating_parents,
-        apply_active_classes=apply_active_classes,
-        use_absolute_page_urls=use_absolute_page_urls,
-    )
+    menu_items = prime_menu_items(menu_items=children_pages, **common_kwargs)
 
     """
     If `page` has a `modify_submenu_items` method, send the primed
@@ -230,6 +234,10 @@ def get_sub_menu_items_for_page(
 
         # Call `modify_submenu_items` using the above kwargs dict
         menu_items = page.modify_submenu_items(**method_kwargs)
+
+    # allow hooks to modify the menu_items list further
+    for hook in hooks.get_hooks('menus_modify_sub_menu_items'):
+        menu_items = hook(menu_items, page=page, **common_kwargs)
 
     return page, menu_items
 
