@@ -1450,7 +1450,7 @@ class TestTemplateTags(TestCase):
                     <a href="/superheroes/marvel-comics/">Marvel Comics</a>
                     <ul class="sub-menu" data-level="2">
                         <li class=" low-level"><a href="/superheroes/marvel-comics/iron-man/">Iron Man</a></li>
-                        <li class=" low-level"><a href="/superheroes/marvel-comics/spiderman/">Spiderman</a></li>
+                        <li class=" low-level"><a href="/superheroes/marvel-comics/spiderman/">Spider-man</a></li>
                     </ul>
                 </li>
                 <li class="ancestor low-level">
